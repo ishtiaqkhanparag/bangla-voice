@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>বাংলা ভয়েস</title>
+<meta name="theme-color" content="#0f3d34">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="বাংলা ভয়েস">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f3f1ea; --card:#ffffff; --ink:#14211d; --muted:#6b7a74; --line:#e3e0d6;
+    --brand:#0f3d34; --brand-2:#1f6b5a; --accent:#25d366; --rec:#e5484d;
+    --radius:22px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:"Hind Siliguri",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--ink);
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    display:flex; flex-direction:column; min-height:100dvh;
+    -webkit-user-select:none; user-select:none;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px 6px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:20px; color:var(--brand)}
+  .brand .dot{width:30px;height:30px;border-radius:10px;background:var(--brand);display:grid;place-items:center}
+  .icon-btn{
+    width:42px;height:42px;border-radius:14px;border:1px solid var(--line);background:var(--card);
+    display:grid;place-items:center;color:var(--brand);cursor:pointer
+  }
+  main{flex:1; display:flex; flex-direction:column; gap:14px; padding:8px 20px 0}
+
+  .seg{display:flex; background:#e7e4d9; border-radius:16px; padding:4px; gap:4px}
+  .seg button{
+    flex:1; border:0; background:transparent; padding:10px 8px; border-radius:12px;
+    font:inherit; font-size:15px; font-weight:600; color:var(--muted); cursor:pointer
+  }
+  .seg button.on{background:var(--card); color:var(--brand); box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; display:flex; flex-direction:column; flex:1; min-height:170px; max-height:42dvh
+  }
+  textarea{
+    flex:1; width:100%; border:0; outline:0; resize:none; background:transparent;
+    font:inherit; font-size:21px; line-height:1.55; color:var(--ink);
+    -webkit-user-select:text; user-select:text
+  }
+  textarea::placeholder{color:#a8b2ad}
+  .actions{display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:10px}
+  .act{
+    border:1px solid var(--line); background:var(--card); color:var(--brand);
+    border-radius:16px; padding:13px 8px; font:inherit; font-size:16px; font-weight:600;
+    display:flex; align-items:center; justify-content:center; gap:7px; cursor:pointer;
+    text-decoration:none
+  }
+  .act.wa{background:var(--accent); border-color:var(--accent); color:#fff}
+  .act:disabled,.act.off{opacity:.4; pointer-events:none}
+
+  .mic-wrap{display:flex; flex-direction:column; align-items:center; gap:12px; padding:18px 0 26px}
+  .status{font-size:16px; color:var(--muted); min-height:24px; text-align:center}
+  .status b{color:var(--ink)}
+  .mic{
+    position:relative; width:112px; height:112px; border-radius:50%; border:0; cursor:pointer;
+    background:var(--brand); color:#fff; display:grid; place-items:center;
+    box-shadow:0 10px 30px rgba(15,61,52,.35); transition:transform .15s, background .2s
+  }
+  .mic:active{transform:scale(.96)}
+  .mic.rec{background:var(--rec); box-shadow:0 10px 30px rgba(229,72,77,.4)}
+  .mic.rec::before,.mic.rec::after{
+    content:""; position:absolute; inset:-10px; border-radius:50%;
+    border:3px solid rgba(229,72,77,.35); animation:pulse 1.4s ease-out infinite
+  }
+  .mic.rec::after{animation-delay:.7s}
+  @keyframes pulse{from{transform:scale(.9);opacity:1}to{transform:scale(1.35);opacity:0}}
+  .mic.busy{background:var(--brand-2)}
+  .spinner{width:44px;height:44px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+
+  .toast{
+    position:fixed; left:50%; bottom:calc(150px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:14px; font-size:15px;
+    opacity:0; transition:.25s; pointer-events:none; max-width:86vw; text-align:center
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  .history{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none}
+  .history::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:#e9e6dc; border:0; border-radius:12px; padding:8px 12px; font:inherit; font-size:14px; color:var(--ink); cursor:pointer
+  }
+
+  /* settings sheet */
+  .sheet-bg{position:fixed; inset:0; background:rgba(10,20,17,.45); display:flex; align-items:flex-end; z-index:10}
+  .sheet{
+    width:100%; background:var(--card); border-radius:26px 26px 0 0;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:14px;
+    -webkit-user-select:text; user-select:text
+  }
+  .sheet h2{margin:0; font-size:21px; color:var(--brand)}
+  .sheet p{margin:0; color:var(--muted); font-size:15px; line-height:1.55}
+  .sheet ol{margin:0; padding-left:22px; color:var(--ink); font-size:15px; line-height:1.7}
+  .sheet a{color:var(--brand-2); font-weight:600}
+  .sheet input{
+    width:100%; border:1.5px solid var(--line); border-radius:14px; padding:14px; font-size:16px;
+    font-family:ui-monospace,Menlo,monospace; outline:0
+  }
+  .sheet input:focus{border-color:var(--brand-2)}
+  .primary{
+    border:0; background:var(--brand); color:#fff; border-radius:16px; padding:15px;
+    font:inherit; font-size:17px; font-weight:600; cursor:pointer
+  }
+  .ghost{border:0; background:transparent; color:var(--muted); font:inherit; font-size:15px; cursor:pointer; padding:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="dot">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </div>
+    বাংলা ভয়েস
+  </div>
+  <button class="icon-btn" id="openSettings" aria-label="সেটিংস">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<main>
+  <div class="seg" id="mode">
+    <button data-mode="as-is" class="on">যেভাবে বলি সেভাবে</button>
+    <button data-mode="shuddho">শুদ্ধ বাংলায়</button>
+  </div>
+
+  <div class="card">
+    <textarea id="out" placeholder="নিচের মাইকে চাপ দিয়ে কথা বলুন। লেখা এখানে আসবে, চাইলে এডিটও করতে পারবেন।"></textarea>
+  </div>
+
+  <div class="actions">
+    <button class="act off" id="copyBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>কপি
+    </button>
+    <button class="act off" id="shareBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>পাঠান
+    </button>
+    <a class="act wa off" id="waBtn" href="#">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.4a.5.5 0 0 0 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.2-.2-.3-.5-.4z"/></svg>WhatsApp
+    </a>
+  </div>
+
+  <div class="history" id="history"></div>
+</main>
+
+<div class="mic-wrap">
+  <div class="status" id="status">চাপ দিয়ে কথা বলুন</div>
+  <button class="mic" id="mic" aria-label="রেকর্ড">
+    <svg id="micIcon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3" fill="#fff"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>
+    <svg id="stopIcon" class="hidden" width="36" height="36" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3" fill="#fff"/></svg>
+    <div id="spin" class="spinner hidden"></div>
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="sheet-bg hidden" id="settings">
+  <div class="sheet">
+    <h2>Gemini API key</h2>
+    <p>শুধু একবার লাগবে। key-টা শুধু এই ফোনেই সেভ থাকবে, অন্য কোথাও যাবে না।</p>
+    <ol>
+      <li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> খুলুন</li>
+      <li><b>Create API key</b> চাপুন, তারপর key কপি করুন</li>
+      <li>নিচের বক্সে পেস্ট করে <b>সেভ</b> চাপুন</li>
+    </ol>
+    <input id="keyInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza...">
+    <button class="primary" id="saveKey">সেভ</button>
+    <button class="ghost" id="closeSettings">বন্ধ করুন</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const MODEL = "gemini-flash-latest";
+  const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+
+  const PROMPTS = {
+    "as-is":
+      "You are a precise transcriber. Transcribe this audio word for word in Bengali (Bangla) script. " +
+      "The speaker is from Sylhet, Bangladesh and may speak Sylheti dialect, standard Bangla, or a mix, sometimes with English words. " +
+      "Write exactly what is said, in the same dialect and with the same words. Do NOT translate and do NOT convert Sylheti into standard Bangla. " +
+      "Spell Sylheti words in Bengali script the way they sound. Keep English words in English letters. " +
+      "Add natural punctuation. Output only the transcription, with no quotes, notes or explanations. If there is no speech, output nothing.",
+    "shuddho":
+      "Listen to this audio. The speaker is from Sylhet, Bangladesh and may speak Sylheti dialect, standard Bangla, or a mix, sometimes with English words. " +
+      "Understand exactly what they mean and write it as a natural message in standard (shuddho, cholito) Bangla in Bengali script, " +
+      "keeping the same meaning, tone and person. Do not add or remove information. Keep English words in English letters. " +
+      "Output only the message, with no quotes, notes or explanations. If there is no speech, output nothing."
+  };
+
+  const $ = id => document.getElementById(id);
+  const out = $("out"), statusEl = $("status"), mic = $("mic");
+  const copyBtn = $("copyBtn"), shareBtn = $("shareBtn"), waBtn = $("waBtn");
+
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+
+  let mode = store.get("bv_mode", "as-is");
+  let state = "idle"; // idle | rec | busy
+  let recorder = null, chunks = [], stream = null, timer = null, startedAt = 0;
+
+  // ---------- UI helpers ----------
+  function toast(msg, ms = 2200) {
+    const t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
+  }
+  function setStatus(html) { statusEl.innerHTML = html; }
+  function setState(s) {
+    state = s;
+    mic.classList.toggle("rec", s === "rec");
+    mic.classList.toggle("busy", s === "busy");
+    $("micIcon").classList.toggle("hidden", s !== "idle");
+    $("stopIcon").classList.toggle("hidden", s !== "rec");
+    $("spin").classList.toggle("hidden", s !== "busy");
+  }
+  function refreshActions() {
+    const has = out.value.trim().length > 0;
+    [copyBtn, shareBtn, waBtn].forEach(b => b.classList.toggle("off", !has));
+    waBtn.href = has ? "https://wa.me/?text=" + encodeURIComponent(out.value.trim()) : "#";
+  }
+  function renderMode() {
+    document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.mode === mode));
+  }
+
+  // ---------- history ----------
+  function getHistory() { try { return JSON.parse(store.get("bv_hist", "[]")); } catch { return []; } }
+  function addHistory(text) {
+    const h = getHistory().filter(x => x !== text);
+    h.unshift(text); store.set("bv_hist", JSON.stringify(h.slice(0, 12))); renderHistory();
+  }
+  function renderHistory() {
+    const box = $("history"); box.innerHTML = "";
+    getHistory().slice(1).forEach(t => {
+      const c = document.createElement("button"); c.className = "chip"; c.textContent = t;
+      c.onclick = () => { out.value = t; refreshActions(); };
+      box.appendChild(c);
+    });
+  }
+
+  // ---------- settings ----------
+  function openSettings() { $("keyInput").value = store.get("bv_key", ""); $("settings").classList.remove("hidden"); }
+  function closeSettings() { $("settings").classList.add("hidden"); }
+  $("openSettings").onclick = openSettings;
+  $("closeSettings").onclick = closeSettings;
+  $("settings").addEventListener("click", e => { if (e.target.id === "settings") closeSettings(); });
+  $("saveKey").onclick = () => {
+    const k = $("keyInput").value.trim();
+    if (!k) { toast("key পেস্ট করুন"); return; }
+    store.set("bv_key", k); closeSettings(); toast("সেভ হয়েছে ✅ এবার মাইকে চাপুন");
+  };
+
+  // ---------- mode ----------
+  document.querySelectorAll("#mode button").forEach(b => b.onclick = () => {
+    mode = b.dataset.mode; store.set("bv_mode", mode); renderMode();
+  });
+
+  // ---------- actions ----------
+  out.addEventListener("input", refreshActions);
+  copyBtn.onclick = async () => {
+    try { await navigator.clipboard.writeText(out.value.trim()); toast("কপি হয়েছে ✅"); }
+    catch { out.focus(); out.select(); toast("লেখা সিলেক্ট করা হয়েছে, Copy চাপুন"); }
+  };
+  shareBtn.onclick = async () => {
+    const text = out.value.trim(); if (!text) return;
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch (e) { /* user cancelled */ }
+    } else {
+      try { await navigator.clipboard.writeText(text); toast("কপি হয়েছে, এবার মেসেঞ্জারে পেস্ট করুন"); } catch {}
+    }
+  };
+
+  // ---------- recording ----------
+  function pickMime() {
+    const types = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+    if (!window.MediaRecorder) return "";
+    for (const t of types) { try { if (MediaRecorder.isTypeSupported(t)) return t; } catch {} }
+    return "";
+  }
+
+  async function startRec() {
+    if (!store.get("bv_key", "")) { openSettings(); return; }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch (e) {
+      toast("মাইকের অনুমতি দিন (Settings → Safari → Microphone)", 3500); return;
+    }
+    const mime = pickMime();
+    try { recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream); }
+    catch { recorder = new MediaRecorder(stream); }
+    chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = onStopped;
+    recorder.start();
+    startedAt = Date.now(); setState("rec");
+    const tick = () => {
+      const s = Math.floor((Date.now() - startedAt) / 1000);
+      setStatus(`<b>শুনছি…</b> ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")} · শেষ হলে আবার চাপুন`);
+      if (s >= 180) stopRec();
+    };
+    tick(); timer = setInterval(tick, 500);
+  }
+
+  function stopRec() {
+    clearInterval(timer);
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    if (stream) stream.getTracks().forEach(t => t.stop());
+  }
+
+  async function onStopped() {
+    const type = (recorder && recorder.mimeType) || "audio/mp4";
+    const blob = new Blob(chunks, { type });
+    if (Date.now() - startedAt < 700 || blob.size < 1500) {
+      setState("idle"); setStatus("একটু বেশি সময় ধরে বলুন"); return;
+    }
+    setState("busy"); setStatus("<b>লিখছি…</b>");
+    try {
+      const audio = await toWavOrOriginal(blob);
+      const text = await transcribe(audio);
+      if (!text) { setStatus("কিছু শোনা যায়নি, আবার বলুন"); setState("idle"); return; }
+      out.value = text; refreshActions(); addHistory(text);
+      setStatus("হয়ে গেছে ✅ পাঠান বা WhatsApp চাপুন");
+      try { await navigator.clipboard.writeText(text); } catch {}
+    } catch (e) {
+      console.error(e);
+      setStatus("সমস্যা হয়েছে, আবার চেষ্টা করুন");
+      toast(e.userMsg || "নেটওয়ার্ক বা key-তে সমস্যা", 4000);
+    }
+    setState("idle");
+  }
+
+  // Convert recording to 16 kHz mono WAV (format Gemini officially supports). Falls back to the original.
+  async function toWavOrOriginal(blob) {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const ac = new AC();
+      const buf = await new Promise((res, rej) => {
+        blob.arrayBuffer().then(ab => {
+          const p = ac.decodeAudioData(ab, res, rej);
+          if (p && p.then) p.then(res, rej);
+        }, rej);
+      });
+      ac.close && ac.close();
+      const rate = 16000;
+      const len = Math.ceil(buf.duration * rate);
+      const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, len, rate);
+      const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(0);
+      const rendered = await off.startRendering();
+      return { mime: "audio/wav", b64: await blobToB64(encodeWav(rendered.getChannelData(0), rate)) };
+    } catch (e) {
+      console.warn("WAV convert failed, sending original", e);
+      return { mime: blob.type.split(";")[0] || "audio/mp4", b64: await blobToB64(blob) };
+    }
+  }
+
+  function encodeWav(samples, rate) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const v = new DataView(buffer);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, "RIFF"); v.setUint32(4, 36 + samples.length * 2, true); w(8, "WAVE"); w(12, "fmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, "data"); v.setUint32(40, samples.length * 2, true);
+    let o = 44;
+    for (let i = 0; i < samples.length; i++, o += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Blob([buffer], { type: "audio/wav" });
+  }
+
+  function blobToB64(blob) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result).split(",")[1]);
+      r.onerror = rej; r.readAsDataURL(blob);
+    });
+  }
+
+  async function transcribe({ mime, b64 }) {
+    const body = {
+      contents: [{ role: "user", parts: [
+        { text: PROMPTS[mode] },
+        { inline_data: { mime_type: mime, data: b64 } }
+      ]}]
+    };
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 60000);
+    let res;
+    try {
+      res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": store.get("bv_key", "") },
+        body: JSON.stringify(body), signal: ctrl.signal
+      });
+    } finally { clearTimeout(to); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error((data.error && data.error.message) || res.status);
+      if (res.status === 400 && /API key/i.test(err.message)) err.userMsg = "API key ঠিক নেই। সেটিংসে নতুন key দিন";
+      else if (res.status === 403) err.userMsg = "API key কাজ করছে না। সেটিংসে চেক করুন";
+      else if (res.status === 429) err.userMsg = "আজকের ফ্রি লিমিট শেষ, একটু পরে চেষ্টা করুন";
+      else err.userMsg = "Gemini সমস্যা: " + err.message;
+      throw err;
+    }
+    const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    return parts.filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
+  }
+
+  mic.onclick = () => {
+    if (state === "idle") startRec();
+    else if (state === "rec") stopRec();
+  };
+
+  // ---------- init ----------
+  renderMode(); renderHistory(); refreshActions();
+  if (!store.get("bv_key", "")) setTimeout(openSettings, 400);
+})();
+</script>
+</body>
+</html>
