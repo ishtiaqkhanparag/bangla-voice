@@ -2,6 +2,7 @@
 <html lang="bn">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>বাংলা ভয়েস</title>
 <meta name="theme-color" content="#0f3d34">
@@ -191,7 +192,7 @@
       <p>key নিন: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> → <b>Create new secret key</b>। অ্যাকাউন্টে কিছু টাকা (যেমন $5) রিচার্জ করা লাগবে।</p>
       <input id="oaKeyInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="OpenAI key: sk-...">
     </div>
-    <p>key শুধু এই ফোনেই সেভ থাকবে।</p>
+    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৩</span></p>
     <button class="primary" id="saveKey">সেভ</button>
     <button class="ghost" id="closeSettings">বন্ধ করুন</button>
   </div>
@@ -225,7 +226,7 @@
 
   let mode = store.get("bv_mode", "as-is");
   let state = "idle"; // idle | rec | busy
-  let recorder = null, chunks = [], stream = null, timer = null, startedAt = 0;
+  let recorder = null, chunks = [], stream = null, timer = null, startedAt = 0, busyTimer = null, stepNote = "";
 
   // ---------- UI helpers ----------
   function toast(msg, ms = 2200) {
@@ -351,20 +352,23 @@
     if (Date.now() - startedAt < 700 || blob.size < 1500) {
       setState("idle"); setStatus("একটু বেশি সময় ধরে বলুন"); return;
     }
-    setState("busy"); setStatus("<b>লিখছি…</b>");
+    setState("busy"); stepNote = "";
+    const t0 = Date.now();
+    busyTimer = setInterval(() => setStatus(`<b>লিখছি…</b> ${Math.floor((Date.now()-t0)/1000)} সেকেন্ড${stepNote}`), 300);
     try {
-      const audio = await toWavOrOriginal(blob);
+      const audio = await withTimeout(toWavOrOriginal(blob), 4000).catch(async () => ({ mime: blob.type.split(";")[0] || "audio/mp4", b64: await blobToB64(blob) }));
       const text = await transcribe(audio);
+      clearInterval(busyTimer);
       if (!text) { setStatus("কিছু শোনা যায়নি, আবার বলুন"); setState("idle"); return; }
       out.value = text; refreshActions(); addHistory(text);
       setStatus("হয়ে গেছে ✅ পাঠান বা WhatsApp চাপুন");
       try { await navigator.clipboard.writeText(text); } catch {}
     } catch (e) {
-      console.error(e);
+      console.error(e); clearInterval(busyTimer);
       setStatus("সমস্যা হয়েছে, আবার চেষ্টা করুন");
       toast(e.userMsg || "নেটওয়ার্ক বা key-তে সমস্যা", 4000);
     }
-    setState("idle");
+    clearInterval(busyTimer); setState("idle");
   }
 
   // Convert recording to 16 kHz mono WAV (format Gemini officially supports). Falls back to the original.
@@ -389,6 +393,10 @@
       console.warn("WAV convert failed, sending original", e);
       return { mime: blob.type.split(";")[0] || "audio/mp4", b64: await blobToB64(blob) };
     }
+  }
+
+  function withTimeout(promise, ms) {
+    return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
   }
 
   function encodeWav(samples, rate) {
@@ -428,7 +436,7 @@
   }
   const retryable = e => [404, 429, 500, 502, 503, 504].includes(e.status) && !/quota|billing|insufficient/i.test(e.message);
 
-  async function postJSON(url, headers, body, ms = 45000) {
+  async function postJSON(url, headers, body, ms = 20000) {
     const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), ms);
     try {
       const res = await fetch(url, { method: "POST", headers, body, signal: ctrl.signal });
@@ -455,11 +463,12 @@
   async function transcribeGemini(audio) {
     let last;
     for (const model of GEMINI_MODELS) {
-      try { return await geminiOnce(model, audio, true); }
+      stepNote = GEMINI_MODELS.indexOf(model) ? " (বিকল্প সার্ভার)" : "";
+      try { return await geminiOnce(model, audio, false); }
       catch (e) {
         last = e;
         if (e.status === 400 && /thinking/i.test(e.message)) {
-          try { return await geminiOnce(model, audio, false); } catch (e2) { last = e2; if (!retryable(e2)) throw e2; continue; }
+          continue;
         }
         if (!retryable(e)) throw e;
       }
