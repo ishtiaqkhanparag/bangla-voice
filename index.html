@@ -194,7 +194,7 @@
     </div>
     <p style="margin-top:4px"><b>আমার শব্দ ও নাম</b> (ঐচ্ছিক): যে শব্দ বা নাম প্রায়ই ভুল লেখে, এখানে সঠিক বানানে কমা দিয়ে লিখে রাখুন।</p>
     <textarea id="wordsInput" rows="2" style="border:1.5px solid var(--line);border-radius:14px;padding:12px;font:inherit;font-size:16px;outline:0;flex:none" placeholder="যেমন: কিতা, হকল, সাইদুল, অফস্পেস"></textarea>
-    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৪</span></p>
+    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৫</span></p>
     <button class="primary" id="saveKey">সেভ</button>
     <button class="ghost" id="closeSettings">বন্ধ করুন</button>
   </div>
@@ -465,31 +465,48 @@
     } finally { clearTimeout(to); }
   }
 
-  async function geminiOnce(model, audio, thinking) {
+  async function geminiOnce(model, audio, thinking, ms) {
     const body = { contents: [{ role: "user", parts: [ { text: buildPrompt() }, { inline_data: { mime_type: audio.mime, data: audio.b64 } } ] }] };
     if (thinking) body.generationConfig = { thinkingConfig: { thinkingLevel: "minimal" } };
     const data = await postJSON(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       { "Content-Type": "application/json", "x-goog-api-key": store.get("bv_key", "") },
-      JSON.stringify(body));
+      JSON.stringify(body), ms);
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     return parts.filter(p => p.text && !p.thought).map(p => p.text).join("").trim();
   }
 
-  async function transcribeGemini(audio) {
+  // Strong model first (thinking kept minimal for speed). If it hasn't answered in 6 s,
+  // the fast model starts in parallel and whichever finishes first wins.
+  const PRIMARY = ["gemini-3.7-flash", "gemini-3.6-flash"];
+  const BACKUP = ["gemini-3.5-flash-lite", "gemini-flash-latest"];
+
+  async function geminiChain(models, thinking, ms) {
     let last;
-    for (const model of GEMINI_MODELS) {
-      stepNote = GEMINI_MODELS.indexOf(model) ? " (বিকল্প সার্ভার)" : "";
-      try { return await geminiOnce(model, audio, false); }
+    for (const model of models) {
+      try { return await geminiOnce(model, audio_, thinking, ms); }
       catch (e) {
         last = e;
-        if (e.status === 400 && /thinking/i.test(e.message)) {
-          continue;
+        if (thinking && e.status === 400 && /thinking/i.test(e.message)) {
+          try { return await geminiOnce(model, audio_, false, ms); } catch (e2) { last = e2; if (!retryable(e2)) throw e2; continue; }
         }
         if (!retryable(e)) throw e;
       }
     }
     throw last;
+  }
+  let audio_ = null;
+
+  function transcribeGemini(audio) {
+    audio_ = audio;
+    const primary = geminiChain(PRIMARY, true, 15000);
+    const backup = new Promise((res, rej) => {
+      let started = false;
+      const go = () => { if (started) return; started = true; stepNote = " (দ্রুত সার্ভারও চেষ্টা করছি)"; geminiChain(BACKUP, false, 15000).then(res, rej); };
+      const t = setTimeout(go, 6000);
+      primary.then(() => clearTimeout(t), () => { clearTimeout(t); go(); });
+    });
+    return Promise.any([primary, backup]).catch(agg => { throw (agg.errors && agg.errors[agg.errors.length - 1]) || agg; });
   }
 
   async function transcribeOpenAI(audio) {
