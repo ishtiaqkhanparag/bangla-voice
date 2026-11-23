@@ -168,6 +168,7 @@
 
 <div class="mic-wrap">
   <div class="status" id="status">চাপ দিয়ে কথা বলুন</div>
+  <div style="position:fixed;right:12px;bottom:calc(6px + env(safe-area-inset-bottom));font-size:12px;color:#a8b2ad">v6</div>
   <button class="mic" id="mic" aria-label="রেকর্ড">
     <svg id="micIcon" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="9" y="2.5" width="6" height="12" rx="3" fill="#fff"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>
     <svg id="stopIcon" class="hidden" width="36" height="36" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3" fill="#fff"/></svg>
@@ -194,7 +195,7 @@
     </div>
     <p style="margin-top:4px"><b>আমার শব্দ ও নাম</b> (ঐচ্ছিক): যে শব্দ বা নাম প্রায়ই ভুল লেখে, এখানে সঠিক বানানে কমা দিয়ে লিখে রাখুন।</p>
     <textarea id="wordsInput" rows="2" style="border:1.5px solid var(--line);border-radius:14px;padding:12px;font:inherit;font-size:16px;outline:0;flex:none" placeholder="যেমন: কিতা, হকল, সাইদুল, অফস্পেস"></textarea>
-    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৫</span></p>
+    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৬</span></p>
     <button class="primary" id="saveKey">সেভ</button>
     <button class="ghost" id="closeSettings">বন্ধ করুন</button>
   </div>
@@ -537,6 +538,13 @@
     if (state === "idle") startRec();
     else if (state === "rec") stopRec();
   };
+
+  // ---------- auto-update: always load the newest version ----------
+  const APP_VERSION = 6;
+  fetch("./version.txt?t=" + Date.now(), { cache: "no-store" }).then(r => r.text()).then(v => {
+    const latest = parseInt(v, 10);
+    if (latest > APP_VERSION && !location.search.includes("v=" + latest)) location.replace("./?v=" + latest);
+  }).catch(() => {});
 
   // ---------- init ----------
   renderMode(); renderHistory(); refreshActions();
