@@ -192,7 +192,9 @@
       <p>key নিন: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a> → <b>Create new secret key</b>। অ্যাকাউন্টে কিছু টাকা (যেমন $5) রিচার্জ করা লাগবে।</p>
       <input id="oaKeyInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="OpenAI key: sk-...">
     </div>
-    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৩</span></p>
+    <p style="margin-top:4px"><b>আমার শব্দ ও নাম</b> (ঐচ্ছিক): যে শব্দ বা নাম প্রায়ই ভুল লেখে, এখানে সঠিক বানানে কমা দিয়ে লিখে রাখুন।</p>
+    <textarea id="wordsInput" rows="2" style="border:1.5px solid var(--line);border-radius:14px;padding:12px;font:inherit;font-size:16px;outline:0;flex:none" placeholder="যেমন: কিতা, হকল, সাইদুল, অফস্পেস"></textarea>
+    <p>key শুধু এই ফোনেই সেভ থাকবে। <span style="opacity:.6">· ভার্সন ৪</span></p>
     <button class="primary" id="saveKey">সেভ</button>
     <button class="ghost" id="closeSettings">বন্ধ করুন</button>
   </div>
@@ -201,19 +203,32 @@
 <script>
 (() => {
 
+  const BASE_RULES =
+    "The speaker lives in Sylhet, Bangladesh. In one message they may speak Sylheti (Sylhoti) dialect, standard Bangla, " +
+    "Arabic, Urdu, Hindi, English, or any mix of these. First recognise which language or dialect each part is in.\n" +
+    "Sylheti is very different from standard Bangla in sound and words. Typical Sylheti words: কিতা (what), কিলা (how), " +
+    "অখন (now), হকল (all), মাতা / মাত (talk), ফুয়া (boy), ফুরি (girl), আইরাম (I am coming), যাইরাম (I am going), " +
+    "খাইলায়নি (did you eat), কিচ্ছু, ইকানো, হিকানো, বাদে (later), অইছে, কররায়, গেছলাম, আছইন, জানইন. " +
+    "Sylheti often sounds like হ for স/শ, ফ for প, খ for ক, and verb endings like -রায়, -রাম, -ইন, -লায়.\n";
   const PROMPTS = {
     "as-is":
-      "You are a precise transcriber. Transcribe this audio word for word in Bengali (Bangla) script. " +
-      "The speaker is from Sylhet, Bangladesh and may speak Sylheti dialect, standard Bangla, or a mix, sometimes with English words. " +
-      "Write exactly what is said, in the same dialect and with the same words. Do NOT translate and do NOT convert Sylheti into standard Bangla. " +
-      "Spell Sylheti words in Bengali script the way they sound. Keep English words in English letters. " +
-      "Add natural punctuation. Output only the transcription, with no quotes, notes or explanations. If there is no speech, output nothing.",
+      "You are an expert transcriber for Bangla speakers. " + BASE_RULES +
+      "Write the message in Bengali (Bangla) script only:\n" +
+      "- Sylheti parts: write them word for word, exactly as spoken, spelled in Bengali script the way they sound. NEVER convert Sylheti into standard Bangla.\n" +
+      "- Standard Bangla parts: write them exactly as spoken.\n" +
+      "- Single Arabic, Urdu, Hindi or English words or short phrases inside Bangla/Sylheti speech (like ইনশাআল্লাহ, আলহামদুলিল্লাহ, মাশাআল্লাহ, ওকে, অফিস): write them in Bengali script as they sound.\n" +
+      "- If a whole sentence is in Arabic, Urdu, Hindi, English or another language: translate that sentence into natural Bangla.\n" +
+      "Add natural punctuation. Output only the final Bangla text, with no quotes, labels, notes or explanations. If there is no speech, output nothing.",
     "shuddho":
-      "Listen to this audio. The speaker is from Sylhet, Bangladesh and may speak Sylheti dialect, standard Bangla, or a mix, sometimes with English words. " +
-      "Understand exactly what they mean and write it as a natural message in standard (shuddho, cholito) Bangla in Bengali script, " +
-      "keeping the same meaning, tone and person. Do not add or remove information. Keep English words in English letters. " +
-      "Output only the message, with no quotes, notes or explanations. If there is no speech, output nothing."
+      "You are an expert at understanding Bangla speakers. " + BASE_RULES +
+      "Understand exactly what the speaker means, in whatever language or dialect, and write it as one natural message in standard (shuddho, cholito) Bangla, in Bengali script. " +
+      "Keep the same meaning, tone and person; do not add or remove information. Common religious phrases like ইনশাআল্লাহ may stay as they are, written in Bengali script. " +
+      "Output only the message, with no quotes, labels, notes or explanations. If there is no speech, output nothing."
   };
+  function buildPrompt() {
+    const words = (store.get("bv_words", "") || "").trim();
+    return PROMPTS[mode] + (words ? "\nThe speaker often uses these words or names; spell them exactly like this: " + words : "");
+  }
 
   const $ = id => document.getElementById(id);
   const out = $("out"), statusEl = $("status"), mic = $("mic");
@@ -277,6 +292,7 @@
   function activeKey() { return store.get(provider === "openai" ? "bv_oakey" : "bv_key", ""); }
   function openSettings() {
     $("keyInput").value = store.get("bv_key", ""); $("oaKeyInput").value = store.get("bv_oakey", "");
+    $("wordsInput").value = store.get("bv_words", "");
     renderProvider(); $("settings").classList.remove("hidden");
   }
   function closeSettings() { provider = store.get("bv_provider", "gemini"); $("settings").classList.add("hidden"); }
@@ -286,7 +302,7 @@
   $("saveKey").onclick = () => {
     const k = $("keyInput").value.trim(), ok = $("oaKeyInput").value.trim();
     if ((provider === "gemini" && !k) || (provider === "openai" && !ok)) { toast("key পেস্ট করুন"); return; }
-    store.set("bv_key", k); store.set("bv_oakey", ok); store.set("bv_provider", provider); closeSettings(); toast("সেভ হয়েছে ✅ এবার মাইকে চাপুন");
+    store.set("bv_key", k); store.set("bv_oakey", ok); store.set("bv_provider", provider); store.set("bv_words", $("wordsInput").value.trim()); closeSettings(); toast("সেভ হয়েছে ✅ এবার মাইকে চাপুন");
   };
 
   // ---------- mode ----------
@@ -423,7 +439,7 @@
     });
   }
 
-  const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
+  const GEMINI_MODELS = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
   const OPENAI_MODELS = ["gpt-transcribe", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"];
 
   function apiError(status, message) {
@@ -450,7 +466,7 @@
   }
 
   async function geminiOnce(model, audio, thinking) {
-    const body = { contents: [{ role: "user", parts: [ { text: PROMPTS[mode] }, { inline_data: { mime_type: audio.mime, data: audio.b64 } } ] }] };
+    const body = { contents: [{ role: "user", parts: [ { text: buildPrompt() }, { inline_data: { mime_type: audio.mime, data: audio.b64 } } ] }] };
     if (thinking) body.generationConfig = { thinkingConfig: { thinkingLevel: "minimal" } };
     const data = await postJSON(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -480,12 +496,13 @@
     const blob = await (await fetch(`data:${audio.mime};base64,${audio.b64}`)).blob();
     const prompt = mode === "shuddho"
       ? "বক্তা সিলেটের মানুষ। সিলেটি বা শুদ্ধ বাংলায় কথা বলতে পারেন। লেখাটা শুদ্ধ চলিত বাংলায় লিখুন।"
-      : "বক্তা সিলেটের মানুষ। সিলেটি আঞ্চলিক ভাষা বা শুদ্ধ বাংলায় কথা বলতে পারেন, মাঝে মাঝে ইংরেজি শব্দ। ঠিক যেভাবে বলেছেন সেভাবে বাংলা অক্ষরে লিখুন, সিলেটি শব্দ বদলাবেন না।";
+      : "বক্তা সিলেটের মানুষ। সিলেটি, শুদ্ধ বাংলা, মাঝে মাঝে আরবি বা ইংরেজি শব্দ। যেমন: কিতা খবর? আমি অখন আইরাম, ইনশাআল্লাহ। ঠিক যেভাবে বলেছেন সেভাবে বাংলা অক্ষরে লিখুন।";
+    const w = (store.get("bv_words", "") || "").trim();
     let last;
     for (const model of OPENAI_MODELS) {
       const fd = new FormData();
       fd.append("file", blob, audio.mime === "audio/wav" ? "audio.wav" : "audio.m4a");
-      fd.append("model", model); fd.append("language", "bn"); fd.append("prompt", prompt);
+      fd.append("model", model); fd.append("language", "bn"); fd.append("prompt", w ? prompt + " " + w : prompt);
       try {
         const data = await postJSON("https://api.openai.com/v1/audio/transcriptions",
           { "Authorization": "Bearer " + store.get("bv_oakey", "") }, fd);
